@@ -14,32 +14,34 @@ from keras.preprocessing.sequence import pad_sequences
 import numpy as np
 
 class Data(object):
-    def __init__(self, data_name, data_dir, train_ratio=0.8, max_len=0,
-                 sentence_cols=None, score_col=None):
-        self.data_dir = data_dir
+    def __init__(self, data_name, data_file, train_ratio=0.8, max_len=None,
+                 vocab_limit=None, sentence_cols=None, score_col=None):
+        self.data_file = data_file
         self.train_ratio = train_ratio
         self.max_len = max_len
         self.vocab_size = 1
+        self.vocab_limit = vocab_limit
 
         if data_name.lower() == 'sick':
             self.score_col = 'relatedness_score'
-            self.sentence_cols = ['sentence_A', 'sentence_B']
+            self.sequence_cols = ['sentence_A', 'sentence_B']
 
         elif data_name.lower() == 'quora':
             self.score_col = 'is_duplicate'
-            self.sentence_cols = ['question1', 'question2']
+            self.sequence_cols = ['question1', 'question2']
 
         else:
             self.score_col = score_col
-            self.sentence_cols = questions_cols
+            self.sequence_cols = questions_cols
 
         self.x_train = list()
         self.y_train = list()
         self.x_val = list()
         self.y_val = list()
-        self.vocab = set()
-        self.word_to_id = dict()
-        self.id_to_word = dict()
+        self.vocab = set('PAD')
+        self.word_to_id = {'PAD':0}
+        self.id_to_word = {0:'PAD'}
+        self.word_to_count = dict()
         self.run()
 
     def text_to_word_list(self, text):
@@ -91,7 +93,7 @@ class Data(object):
         # Iterate over required sequences of provided dataset
         for index, row in data_df.iterrows():
             # Iterate through the text of both questions of the row
-            for sequence in self.sequences_cols:
+            for sequence in self.sequence_cols:
                 s2n = []  # Sequences with words replaces with indices
                 for word in self.text_to_word_list(row[sequence]):
                     # Remove unwanted words
@@ -101,14 +103,16 @@ class Data(object):
                     if word not in self.vocab:
                         self.vocab.add(word)
                         self.word_to_id[word] = self.vocab_size
+                        self.word_to_count[word] = 1
                         s2n.append(self.vocab_size)
                         self.id_to_word[self.vocab_size] = word
                         self.vocab_size += 1
                     else:
+                        self.word_to_count[word] += 1
                         s2n.append(self.word_to_id[word])
 
-                # Replace questions as word to question as number representation
-                dataset.set_value(index, question, s2n)
+                # Replace |sequence as word| with |sequence as number| representation
+                data_df.at[index, sequence] = s2n
 
         return data_df
 
@@ -121,25 +125,26 @@ class Data(object):
 
         # Zero padding
         for dataset, side in itertools.product([self.x_train, self.x_val], [0, 1]):
-            dataset[side] = pad_sequences(dataset[side], max_len=self.max_len)
+            if self.max_len: dataset[side] = pad_sequences(dataset[side], maxlen=self.max_len)
+            else : dataset[side] = pad_sequences(dataset[side])
 
     def run(self):
-        print('Loading data and building vocabulary.')
-        data_df = self.load_quora()
+        # Loading data and building vocabulary.
+        data_df = self.load_data()
         data_size = len(data_df)
 
-        X = train_df[self.questions_cols]
-        Y = train_df[self.score_col]
+        X = data_df[self.sequence_cols]
+        Y = data_df[self.score_col]
 
         self.x_train, self.x_val, self.y_train, self.y_val = split_data(X, Y, train_size=self.train_ratio)
 
         # Split to lists
-        self.x_train = [self.x_train.question1, self.x_train.question2]
-        self.x_val = [self.x_val.question1, self.x_val.question2]
+        self.x_train = [self.x_train[column] for column in self.sequence_cols]
+        self.x_val = [self.x_val[column] for column in self.sequence_cols]
 
         # Convert labels to their numpy representations
         self.y_train = self.y_train.values
         self.y_val = self.y_val.values
 
-        print('Padding Sequences.')
+        # Padding Sequences.
         self.pad_sequences()
