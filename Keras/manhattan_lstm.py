@@ -61,15 +61,15 @@ if __name__ == "__main__":
 
     x_train = data.x_train
     y_train = data.y_train
-    x_test = data.x_val
-    y_test = data.y_val
+    x_val = data.x_val
+    y_val = data.y_val
     vocab_size = data.vocab_size
     max_len = data.max_len
 
     print('\n')
-    print('Number of training samples     :', len(x_train[0]))
-    print('Number of testing samples      :', len(x_test[0]))
-    print('Maximum sequence length        :', max_len)
+    print('Number of training samples        :', len(x_train[0]))
+    print('Number of validation samples      :', len(x_val[0]))
+    print('Maximum sequence length           :', max_len)
     print('\n')
 
     print('Building Embedding Matrix')
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     training_start_time = time()
 
-    history = model.fit(x_train, y_train, validation_data=(x_test, y_test),
+    history = model.fit(x_train, y_train, validation_data=(x_val, y_val),
                         epochs=args.num_iters, batch_size=args.batch_size, verbose=1)
 
     print("Training time finished.\n{} epochs in {}".format(args.num_iters, datetime.timedelta(seconds=time()-training_start_time)))
