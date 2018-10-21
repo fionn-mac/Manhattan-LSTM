@@ -160,10 +160,13 @@ class Data(object):
             sequence_2 = row[self.sequence_cols[1]]
             if len(sequence_1) > 0 and len(sequence_2) > 0:
                 training_pairs.append([sequence_1, sequence_2])
-                training_scores.append(self.y_train[i])
+                training_scores.append(float(self.y_train[i]))
             i += 1
         self.x_train = training_pairs
         self.y_train = training_scores
+
+        print('Number of Training Positive Samples   :', sum(training_scores))
+        print('Number of Training Negative Samples   :', len(training_scores) - sum(training_scores))
 
         i = 0
         for index, row in self.x_val.iterrows():
@@ -171,11 +174,14 @@ class Data(object):
             sequence_2 = row[self.sequence_cols[1]]
             if len(sequence_1) > 0 and len(sequence_2) > 0:
                 validation_pairs.append([sequence_1, sequence_2])
-                validation_scores.append(self.y_val[i])
+                validation_scores.append(float(self.y_val[i]))
             i += 1
 
         self.x_val = validation_pairs
         self.y_val = validation_scores
+
+        print('Number of Validation Positive Samples   :', sum(validation_scores))
+        print('Number of Validation Negative Samples   :', len(validation_scores) - sum(validation_scores))
 
         assert len(self.x_train) == len(self.y_train)
         assert len(self.x_val) == len(self.y_val)

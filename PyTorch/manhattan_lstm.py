@@ -5,8 +5,9 @@ from torch import optim
 import torch.nn.functional as F
 
 class Manhattan_LSTM(nn.Module):
-    def __init__(self, hidden_size, embedding, use_embedding=False, train_embedding=True):
+    def __init__(self, data_name, hidden_size, embedding, use_embedding=False, train_embedding=True):
         super(Manhattan_LSTM, self).__init__()
+        self.data_name = data_name
         self.use_cuda = torch.cuda.is_available()
         self.hidden_size = hidden_size
 
@@ -41,10 +42,11 @@ class Manhattan_LSTM(nn.Module):
         outputs_1, hidden_1 = self.lstm_1(embedded_1, hidden)
         outputs_2, hidden_2 = self.lstm_2(embedded_2, hidden)
 
-        similarity_scores = self.exponent_neg_manhattan_distance(hidden_1[0].view(batch_size, -1),
-                                                                 hidden_2[0].view(batch_size, -1))
+        similarity_scores = self.exponent_neg_manhattan_distance(hidden_1[0].permute(1, 2, 0).view(batch_size, -1),
+                                                                 hidden_2[0].permute(1, 2, 0).view(batch_size, -1))
 
-        return similarity_scores
+        if self.data_name == 'sick': return similarity_scores*5.0
+        else: return similarity_scores
 
     def init_weights(self):
         ''' Initialize weights of lstm 1 '''
