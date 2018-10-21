@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("-z", "--hidden_size", type=int, help="Number of Units in LSTM layer.", default=50)
     parser.add_argument("-b", "--batch_size", type=int, help="Batch Size.", default=32)
     parser.add_argument("-n", "--num_iters", type=int, help="Number of iterations/epochs.", default=7)
-    parser.add_argument("-lr", "--learning_rate", type=float, help="Learning rate for optimizer.", default=1.0)
+    parser.add_argument("-lr", "--learning_rate", type=float, help="Learning rate for optimizer.", default=0.001)
 
     args = parser.parse_args()
 
@@ -32,6 +32,7 @@ if __name__ == "__main__":
     print('Batch Size                   :', args.batch_size)
     print('Max. input length            :', args.max_len)
     print('Learning rate                :', args.learning_rate)
+    print('Number of Epochs             :', args.num_iters)
     print('--------------------------------------\n')
 
     print('Reading Data.')
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     embedding_size = embedding.embedding_matrix.shape[1]
 
     print('Building model.')
-    model = Manhattan_LSTM(args.hidden_size, embedding.embedding_matrix, use_embedding=True, train_embedding=False)
+    model = Manhattan_LSTM(args.data_name, args.hidden_size, embedding.embedding_matrix, use_embedding=True, train_embedding=True)
     if use_cuda: model = model.cuda()
 
     model.init_weights()
@@ -56,7 +57,7 @@ if __name__ == "__main__":
     print("Training Network.")
     train_network = Train_Network(model, data.index2word)
 
-    run_iterations = Run_Iterations(train_network, data.x_train, data.y_train, data.index2word,
+    run_iterations = Run_Iterations(args.data_name, train_network, data.x_train, data.y_train, data.index2word,
                                     args.batch_size, args.num_iters, args.learning_rate,
                                     tracking_pair=args.tracking_pair, x_val=data.x_val, y_val=data.y_val)
     run_iterations.train_iters()

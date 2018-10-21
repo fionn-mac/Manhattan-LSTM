@@ -11,9 +11,10 @@ from nltk import bleu_score
 from helper import Helper
 
 class Run_Iterations(object):
-    def __init__(self, model, x_train, y_train, index2word, batch_size, num_iters,
+    def __init__(self, data_name, model, x_train, y_train, index2word, batch_size, num_iters,
                  learning_rate, tracking_pair=False, x_val=[], y_val=[], print_every=1, plot_every=1):
         self.use_cuda = torch.cuda.is_available()
+        self.data_name = data_name
         self.model = model
         self.batch_size = batch_size
         self.num_iters = num_iters
@@ -45,7 +46,7 @@ class Run_Iterations(object):
         plot_loss_total = 0.0  # Reset every self.plot_every
 
         model_trainable_parameters = list(filter(lambda p: p.requires_grad, self.model.manhattan_lstm.parameters()))
-        model_optimizer = optim.Adadelta(model_trainable_parameters, lr=self.learning_rate)
+        model_optimizer = optim.Adam(model_trainable_parameters, lr=self.learning_rate)
 
         print('Beginning Model Training.\n')
 
@@ -69,12 +70,12 @@ class Run_Iterations(object):
                 plot_losses.append(plot_loss_avg)
                 plot_loss_total = 0
 
-            print('Validation Accuracy: %f Validation Loss: %f' % self.get_accuracy())
+            print('Validation Accuracy: %f Validation Precision: %f Validation Recall: %f Validation Loss: %f' % self.get_accuracy())
             print('\n')
 
-            if epoch % 10 == 0:
-                self.learning_rate /= 2
-                model_optimizer = optim.Adadelta(model_trainable_parameters, lr=self.learning_rate)
+            if epoch % 5 == 0:
+                self.learning_rate *= 0.80
+                model_optimizer = optim.Adam(model_trainable_parameters, lr=self.learning_rate)
 
         # self.help_fn.show_plot(plot_losses)
 
@@ -98,8 +99,19 @@ class Run_Iterations(object):
             self.evaluate_specific(self.x_val[ind], self.y_val[ind], name=str(i))
 
     def get_accuracy(self):
-        correct = 0
+        true_positive = 0
+        true_negative = 0
+        false_positive = 0
+        false_negative = 0
         total_loss = 0
+
+        accuracy = 0.0
+        precision = 0.0
+        recall = 0.0
+
+        scale = 1.0
+        if self.data_name == 'sick': scale *= 5.0
+
         for i in range(0, self.val_samples, self.batch_size):
             input_variables = self.x_val[i : i + self.batch_size] # Batch Size x Sequence Length
             actual_scores = self.y_val[i : i + self.batch_size] # Batch Size
@@ -108,10 +120,20 @@ class Run_Iterations(object):
             total_loss += loss
 
             for actual, predict in zip(actual_scores, predicted_scores):
-                if actual.item() < 0.5 and predict.item() < 0.5:
-                    correct += 1
+                if actual.item()/scale < 0.5 and predict.item() < 0.5:
+                    true_negative += 1
 
-                elif actual.item() >= 0.5 and predict.item() >= 0.5:
-                    correct += 1
+                if actual.item()/scale < 0.5 and predict.item() >= 0.5:
+                    false_positive += 1
 
-        return correct*100/len(self.x_val), total_loss
+                elif actual.item()/scale >= 0.5 and predict.item() >= 0.5:
+                    true_positive += 1
+
+                if actual.item()/scale >= 0.5 and predict.item() < 0.5:
+                    false_negative += 1
+
+        accuracy = (true_positive + true_negative)*100/len(self.x_val)
+        if true_positive + false_positive > 0: precision = true_positive*100/(true_positive + false_positive)
+        if true_positive + false_negative > 0: recall = true_positive*100/(true_positive + false_negative)
+
+        return accuracy, precision, recall, total_loss
